@@ -34,7 +34,7 @@ DEPENDS += " \
 	zlib \
 "
 
-RDEPENDS_${PN} = "streamripper virtual/libstb-hal lua luaposix lua-expat ffmpeg"
+RDEPENDS_${PN} = "streamripper virtual/libstb-hal lua luaposix lua-expat ffmpeg "
 
 S = "${WORKDIR}/git"
 
@@ -92,7 +92,7 @@ EXTRA_OECONF = " \
 
 EXTRA_OEMAKE += "'ARFLAGS=rc'"
 
-VERSION_FILE = "${N_PREFIX}/.version"
+# VERSION_FILE = "${N_PREFIX}/.version"
 
 N_CFLAGS = "-Wall -Wextra -Wshadow -Wno-psabi -g -O2 -fno-strict-aliasing -rdynamic -DENABLE_FREESATEPG -DNEW_LIBCURL \
 -I${S}/lib/libcoolstream2 -I${STAGING_INCDIR}/freetype2 -I${STAGING_INCDIR}/sigc++-2.0 -I${STAGING_INCDIR}/glib-2.0 -I${STAGING_LIBDIR}/glib-2.0/include"
@@ -130,25 +130,20 @@ do_install_prepend () {
 	install -d ${D}${localstatedir}/cache
 	install -d ${D}/lib/mdev/fs
 	install -m 755 ${WORKDIR}/mount.mdev ${D}/lib/mdev/fs/mount
-	echo "creator=${CREATOR}"             >> ${D}${VERSION_FILE} 
-	echo "imagename=yocto ${DISTRO}"             >> ${D}${VERSION_FILE} 
-	echo "homepage=${HOMEPAGE}"              >> ${D}${VERSION_FILE}
-        echo "version=${RELEASE_STATE}${DISTRO_VERSION_NUMBER_MAJOR}${DISTRO_VERSION_NUMBER_MINOR}${DISTRO_VERSION_NUMBER_MICRO}`date +%Y%m%d%H%M`" >> ${D}${VERSION_FILE}
-	if [ ! -z ${RELEASE_TEXT_LOCATION_HOST} ];then
-		HASH=$(cd ${S} && echo `git rev-parse --abbrev-ref HEAD` `git describe --always --tags --dirty`)
-		echo "${IMAGE_LOCATION} ${RELEASE_STATE}${DISTRO_VERSION_NUMBER_MAJOR}${DISTRO_VERSION_NUMBER_MINOR}${DISTRO_VERSION_NUMBER_MICRO}`date +%Y%m%d%H%M` MD5 ${HASH} ${DISTRO_VERSION}" > ${RELEASE_TEXT_LOCATION_HOST}
-	fi
-	echo "distro=yocto ${FLAVOUR}" > ${D}${sysconfdir}/image-version
-	echo "machine=${MACHINE}" >> ${D}${sysconfdir}/image-version
-	echo "imageversion=${DISTRO_VERSION_NUMBER_MAJOR}.${DISTRO_VERSION_NUMBER_MINOR}.${DISTRO_VERSION_NUMBER_MICRO}" >> ${D}${sysconfdir}/image-version
+
+	# why this ???
 	touch ${D}/usr/bin/enigma2
 }
 
 do_install_append() {
 	install -d ${D}${sysconfdir}/neutrino/bin ${D}${sysconfdir}/neutrino/plugins/luaplugins
 	install -d ${D}${sysconfdir}/neutrino/plugins/webradio ${D}${sysconfdir}/neutrino/plugins/webtv
-	if [ ! -z ${RELEASE_TEXT_LOCATION} ];then
-		echo "${RELEASE_TEXT_LOCATION}" > ${D}/etc/update.urls
+	# We install update.urls file, but with suffix '.disable'. 
+	# That causes disabling the formal online flash update menu entry within Neutrino which is using update.urls.
+	# Online flash updates will working only with the stb-flash.lua script.
+	# Nevertheless, you can remove the suffix '.disable', but flashing will never works.
+	if [ ! -z ${RELEASE_TEXT_LOCATION} ]; then
+		echo "${RELEASE_TEXT_LOCATION}" > ${D}/etc/update.urls.disable
 	fi
 	cp -rf ${WORKDIR}/etc ${D}
 	install -m 644 ${WORKDIR}/update_download.jpg ${D}${datadir}/tuxbox/neutrino/icons
@@ -159,7 +154,6 @@ do_install_append() {
 }
 
 FILES_${PN} += "\
-	${VERSION_FILE} \
 	/etc \
 	/usr/share \
 	/lib \
@@ -195,5 +189,4 @@ pkg_postinst_ontarget_${PN} () {
 		I=/usr/share/tuxbox/neutrino/icons
 		pic2m2v $I/mp3.jpg $I/radiomode.jpg $I/scan.jpg $I/shutdown.jpg $I/start.jpg
 	fi
-	ln -sf /usr/.version /.version
 }
