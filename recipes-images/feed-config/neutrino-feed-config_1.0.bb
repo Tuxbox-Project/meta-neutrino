@@ -2,7 +2,7 @@ DESCRIPTION = "Neutrino-HD image feed configuration"
 # derived from poky-feed-config
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COREBASE}/meta/COPYING.MIT;md5=3da9cfbcb788c80a0384361b4de20420"
-PR = "r1"
+PR = "r2"
 PACKAGE_ARCH = "${MACHINE_ARCH}"
 INHIBIT_DEFAULT_DEPS = "1"
 
@@ -38,6 +38,7 @@ do_install_prepend () {
 	if [ ${DISTRO} = "coolstream-hd1" ];then
 		sed -i "s|/media/sda1|/media/sdb1|" ${S}/${sysconfdir}/opkg/base-feeds.conf
 	fi
+	rm -f ${S}/${sysconfdir}/opkg/opkg.conf.borken
 }
 
 do_install () {
