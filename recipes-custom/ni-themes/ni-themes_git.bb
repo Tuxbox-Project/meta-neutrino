@@ -25,4 +25,6 @@ do_install () {
 }
 
 
-
+FILES_${PN} = "\
+    /var/tuxbox/themes \
+"
