@@ -18,6 +18,87 @@ set_root_passwd() {
    rm -rf ${IMAGE_ROOTFS}/tmp/*
 }
 
+ROOTFS_POSTPROCESS_COMMAND += "set_image_version;"
+# We create file /etc/image-version for common use (required by some plugins)
+# and for compatibility we make a symlink from /etc/image-version to /.version
+# required by neutrino itself.
+set_image_version () {
+	META_NAME="meta-neutrino"
+	# In case of changed repository name this keeps compatibilty.
+	# Why: meta-neutrino contains mostly recipes to create a tuxbox image and
+	# neutrino is only a part of image like all the other recipes.
+	# The flavour settings are only relevant for neutrino and for some
+	# neutrino package related environment parts
+	# so only neutrino should be marked with current flavour tags.
+	if [ -e ${COREBASE}/meta-tuxbox ]; then
+		META_NAME="meta-tuxbox"
+	fi
+
+	# We extract the image version from git describe content
+	# general meta version comes from the yocto poky repository and git tags are synchronized
+	# with our meta layers. Only the describe content will be added for our image version.
+	META_TAG=`git -C ${COREBASE}/$META_NAME describe --abbrev=0`
+	META_VERSION=$META_TAG-`git -C ${COREBASE}/$META_NAME rev-list $META_TAG..HEAD --count`
+
+	if [ -z $META_VERSION ]; then
+		META_VERSION=${DISTRO_VERSION_NUMBER}
+	fi
+
+	RELEASE_NAME="${DISTRO} ${META_VERSION}"
+	RELEASE_NAME_DISCRIBE=`git -C ${COREBASE}/$META_NAME  describe --always --tags --dirty`
+	DISTRO_VERSION_NUMBER_RAW=${DISTRO_VERSION_NUMBER_MAJOR}${DISTRO_VERSION_NUMBER_MINOR}${DISTRO_VERSION_NUMBER_MICRO}
+
+	# Set the release type within version files and readable text content for gui
+	RELASE_TYPE="Release"
+	if [ ${RELEASE_STATE} == 1 ]; then
+		RELASE_TYPE="Beta"
+	elif [ ${RELEASE_STATE} == 2 ]; then
+		RELASE_TYPE="Nightly"
+	fi
+
+	IMAGE_DESCRIPTION="${MACHINE_BRAND} ${MACHINE_NAME} ${UPDATE_SERVER_URL}"
+
+	# get content of ../imageversion file
+	# required to synchronize version entry with content of ../imageversion file, which is used for image updates
+	echo ${IMAGE_NAME} `cat ${DEPLOY_DIR_IMAGE}/version` > ${DEPLOY_DIR_IMAGE}/imageversion
+	
+	IMAGE_STAMP_STR=`cat ${DEPLOY_DIR_IMAGE}/imageversion`
+	IMAGE_STAMP_LEN=`expr length ${IMAGE_STAMP_STR}`
+	IMAGE_STAMP_START=`expr ${IMAGE_STAMP_LEN} - 14`
+	IMAGE_STAMP=${IMAGE_STAMP_STR:$IMAGE_STAMP_START:$IMAGE_STAMP_LEN}
+	IMAGE_BUILD_TIME_STAMP=${IMAGE_STAMP:0:12}
+
+	#IMAGE_ROOTFS_ETC_DIR=${D}${sysconfdir}
+	IMAGE_ROOTFS_ETC_DIR=${IMAGE_ROOTFS}/etc
+
+	# create content for /etc/image-version file
+	echo "builddate=${IMAGE_STAMP:6:2}.${IMAGE_STAMP:4:2}.${IMAGE_STAMP:0:4} ${IMAGE_STAMP:8:2}:${IMAGE_STAMP:10:2}" > ${IMAGE_ROOTFS_ETC_DIR}/image-version
+	echo "box_model=${MACHINE}"                                                     				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
+	echo "creator=${CREATOR}"                                                       				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
+	echo "distro=${DISTRO}"                                                             				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
+	echo "distro_version=${DISTRO_VERSION}"                                                             				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
+	echo "homepage=${HOME_URL}"                                                     				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
+	echo "imagename=${DISTRO} Neutrino-Image"                                           				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
+	echo "machine=${MACHINE}"                                                       				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
+	echo "version=${RELEASE_STATE}${DISTRO_VERSION_NUMBER_RAW}${IMAGE_BUILD_TIME_STAMP}"   				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
+	echo "imagedescription=${DISTRO} ${IMAGE_DESCRIPTION}"                                    				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
+	echo "imageversion=${RELEASE_NAME}"                                             				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
+	echo "describe=${RELEASE_NAME_DISCRIBE}"                                        				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
+	echo "neutrino_src=${FLAVOUR}"                                                  				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
+	echo "imagedir=${MACHINE}"                                                      				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
+	echo "image_update_url=${IMAGE_LOCATION}"                                       				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
+
+	# We create a symlink from /etc/image-version to /.version to have all required content
+	# and we have a compatible data source.
+	ln -sf /etc/image-version ${IMAGE_ROOTFS}.version
+
+	# Finally we create content for update.urls file.
+	if [ ! -z ${RELEASE_TEXT_LOCATION_HOST} ]; then
+		echo "${IMAGE_LOCATION} ${RELEASE_STATE}${DISTRO_VERSION_NUMBER_RAW}${IMAGE_BUILD_TIME_STAMP} MD5 ${RELEASE_NAME} ${IMAGE_DESCRIPTION}" > ${RELEASE_TEXT_LOCATION_HOST}
+	fi
+}
+
+
 KERNEL_MODULES_INSTALLED += ""
 
 
@@ -141,82 +222,3 @@ IMAGE_INSTALL += " \
 
 EXTRAOPKGCONFIG = "neutrino-feed-config"
 
-
-# We create file /etc/image-version for common use (required by some plugins)
-# and for compatibility we make a symlink from /etc/image-version to /.version
-# required by neutrino itself.
-image_tagging () {
-	META_NAME="meta-neutrino"
-	# In case of changed repository name this keeps compatibilty.
-	# Why: meta-neutrino contains mostly recipes to create a tuxbox image and
-	# neutrino is only a part of image like all the other recipes.
-	# The flavour settings are only relevant for neutrino and for some
-	# neutrino package related environment parts
-	# so only neutrino should be marked with current flavour tags.
-	if [ -e ${COREBASE}/meta-tuxbox ]; then
-		META_NAME="meta-tuxbox"
-	fi
-
-	# We extract the image version from git describe content
-	# general meta version comes from the yocto poky repository and git tags are synchronized
-	# with our meta layers. Only the describe content will be added for our image version.
-	META_TAG=`git -C ${COREBASE}/$META_NAME  tag -l "*" | tail -n1`
-	META_VERSION=$META_TAG-`git -C ${COREBASE}/$META_NAME rev-list $META_TAG..HEAD --count`
-
-	if [ -z $META_VERSION ]; then
-		META_VERSION=${DISTRO_VERSION_NUMBER}
-	fi
-
-	RELEASE_NAME="${ID} ${META_VERSION}"
-	RELEASE_NAME_DISCRIBE=`git -C ${COREBASE}/$META_NAME  describe --always --tags --dirty`
-	DISTRO_VERSION_NUMBER_RAW=${DISTRO_VERSION_NUMBER_MAJOR}${DISTRO_VERSION_NUMBER_MINOR}${DISTRO_VERSION_NUMBER_MICRO}
-
-	# Set the release type within version files and readable text content for gui
-	RELASE_TYPE="Release"
-	if [ ${RELEASE_STATE} == 1 ]; then
-		RELASE_TYPE="Beta"
-	elif [ ${RELEASE_STATE} == 2 ]; then
-		RELASE_TYPE="Nightly"
-	fi
-
-	IMAGE_DESCRIPTION="${MACHINE_BRAND} ${MACHINE_NAME} ${UPDATE_SERVER_URL}"
-
-	# get content of ../imageversion file
-	# required to synchronize version entry with content of ../imageversion file, which is used for image updates
-	IMAGE_STAMP_STR=`cat ${DEPLOY_DIR_IMAGE}/imageversion`
-	IMAGE_STAMP_LEN=`expr length ${IMAGE_STAMP_STR}`
-	IMAGE_STAMP_START=`expr ${IMAGE_STAMP_LEN} - 14`
-	IMAGE_STAMP=${IMAGE_STAMP_STR:$IMAGE_STAMP_START:$IMAGE_STAMP_LEN}
-	IMAGE_BUILD_TIME_STAMP=${IMAGE_STAMP:0:12}
-
-	IMAGE_ROOTFS_ETC_DIR=${IMAGE_ROOTFS}/etc
-
-	# create content for /etc/image-version file
-	echo "builddate=${IMAGE_STAMP:6:2}.${IMAGE_STAMP:4:2}.${IMAGE_STAMP:0:4}"		 > ${IMAGE_ROOTFS_ETC_DIR}/image-version
-	echo "box_model=${MACHINE}"                                                     	>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
-	echo "creator=${CREATOR}"                                                       	>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
-	echo "distro=${ID}"                                                             	>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
-	echo "homepage=${HOME_URL}"                                                     	>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
-	echo "imagename=${ID} Neutrino-Image"                                           	>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
-	echo "machine=${MACHINE}"                                                       	>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
-	echo "version=${RELEASE_STATE}${DISTRO_VERSION_NUMBER_RAW}${IMAGE_BUILD_TIME_STAMP}"   	>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
-	echo "imagedescription=${IMAGE_DESCRIPTION}"                                    	>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
-	echo "imageversion=${RELEASE_NAME}"                                             	>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
-	echo "describe=${RELEASE_NAME_DISCRIBE}"                                        	>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
-	echo "neutrino_src=${FLAVOUR}"                                                  	>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
-	echo "imagedir=${MACHINE}"                                                      	>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
-	echo "image_update_url=${IMAGE_LOCATION}"                                       	>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
-
-	# We create a symlink from /etc/image-version to /.version to have all required content
-	# so we have a compatible data source.
-	ln -sf /etc/image-version ${IMAGE_ROOTFS}.version
-
-	# Finally we create content for update.urls file.
-	if [ ! -z ${RELEASE_TEXT_LOCATION_HOST} ]; then
-		echo "${IMAGE_LOCATION} ${RELEASE_STATE}${DISTRO_VERSION_NUMBER_RAW}${IMAGE_BUILD_TIME_STAMP} MD5 ${RELEASE_NAME} ${IMAGE_DESCRIPTION}" > ${RELEASE_TEXT_LOCATION_HOST}
-	fi
-}
-
-IMAGE_POSTPROCESS_COMMAND += "image_tagging "
-
-RDEPENDS_${PN} = " os-release "
