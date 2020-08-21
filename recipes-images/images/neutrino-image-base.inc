@@ -44,9 +44,8 @@ set_image_version () {
 		META_VERSION=${DISTRO_VERSION_NUMBER}
 	fi
 
-	RELEASE_NAME="${DISTRO} ${META_VERSION}"
+	RELEASE_NAME="${IMAGE_BASENAME} ${META_VERSION}"
 	RELEASE_NAME_DISCRIBE=`git -C ${COREBASE}/$META_NAME  describe --always --tags --dirty`
-	DISTRO_VERSION_NUMBER_RAW=${DISTRO_VERSION_NUMBER_MAJOR}${DISTRO_VERSION_NUMBER_MINOR}${DISTRO_VERSION_NUMBER_MICRO}
 
 	# Set the release type within version files and readable text content for gui
 	RELASE_TYPE="Release"
@@ -56,7 +55,7 @@ set_image_version () {
 		RELASE_TYPE="Nightly"
 	fi
 
-	IMAGE_DESCRIPTION="${MACHINE_BRAND} ${MACHINE_NAME} ${UPDATE_SERVER_URL}"
+	IMAGE_DESCRIPTION="${MACHINE_BRAND}-${MACHINE_NAME} [${ARCH}-${MACHINE}] ${RELASE_TYPE}"
 
 	# get content of ../imageversion file
 	# required to synchronize version entry with content of ../imageversion file, which is used for image updates
@@ -76,13 +75,13 @@ set_image_version () {
 	echo "box_model=${MACHINE}"                                                     				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
 	echo "creator=${CREATOR}"                                                       				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
 	echo "distro=${DISTRO}"                                                             				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
-	echo "distro_version=${DISTRO_VERSION}"                                                             				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
+	echo "distro_version=${DISTRO_VERSION}"                                                             		>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
 	echo "homepage=${HOME_URL}"                                                     				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
-	echo "imagename=${DISTRO} Neutrino-Image"                                           				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
+	echo "imagename=${IMAGE_BASENAME}"  	                                         				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
 	echo "machine=${MACHINE}"                                                       				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
-	echo "version=${RELEASE_STATE}${DISTRO_VERSION_NUMBER_RAW}${IMAGE_BUILD_TIME_STAMP}"   				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
-	echo "imagedescription=${DISTRO} ${IMAGE_DESCRIPTION}"                                    				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
-	echo "imageversion=${RELEASE_NAME}"                                             				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
+	echo "version=${RELEASE_STATE}${DISTRO_VERSION_NUMBER_CYCLE}${IMAGE_BUILD_TIME_STAMP}"   			>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
+	echo "imagedescription=${IMAGE_DESCRIPTION}"                                    				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
+	echo "imageversion=${META_VERSION}"                                             				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
 	echo "describe=${RELEASE_NAME_DISCRIBE}"                                        				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
 	echo "neutrino_src=${FLAVOUR}"                                                  				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
 	echo "imagedir=${MACHINE}"                                                      				>> ${IMAGE_ROOTFS_ETC_DIR}/image-version
@@ -94,7 +93,7 @@ set_image_version () {
 
 	# Finally we create content for update.urls file.
 	if [ ! -z ${RELEASE_TEXT_LOCATION_HOST} ]; then
-		echo "${IMAGE_LOCATION} ${RELEASE_STATE}${DISTRO_VERSION_NUMBER_RAW}${IMAGE_BUILD_TIME_STAMP} MD5 ${RELEASE_NAME} ${IMAGE_DESCRIPTION}" > ${RELEASE_TEXT_LOCATION_HOST}
+		echo "${IMAGE_LOCATION} ${RELEASE_STATE}${DISTRO_VERSION_NUMBER_CYCLE}${IMAGE_BUILD_TIME_STAMP} MD5 ${RELEASE_NAME} ${IMAGE_DESCRIPTION} ${UPDATE_SERVER_URL}" > ${RELEASE_TEXT_LOCATION_HOST}
 	fi
 }
 
