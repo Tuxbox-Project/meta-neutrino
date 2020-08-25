@@ -1,6 +1,5 @@
 SRC_URI_append += "git://github.com/tuxbox-neutrino/gui-neutrino.git;protocol=https \
 		   file://0001-hdd_menu.cpp-assume-device-mounted.patch \
-		   file://green.patch \		   
 "
 
 DEFAULT_THEME ?= "Neutrino-3.0"
